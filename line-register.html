@@ -68,7 +68,9 @@ async function register() {
     const r = await (await fetch(API + '?' + qs)).json();
     if (!r.ok) throw new Error(r.error);
     msg.className = 'ok';
-    msg.textContent = '登録しました。「' + tanto + '」担当分の通知が届きます。';
+    msg.textContent = r.pendingApproval
+      ? '登録申請を送信しました。「' + tanto + '」担当分の通知は、管理者の承認後に届くようになります。'
+      : '登録済みです。「' + tanto + '」担当分の通知が届きます。';
   } catch (e) {
     msg.className = 'ng';
     msg.textContent = '登録に失敗しました。もう一度お試しください。';
