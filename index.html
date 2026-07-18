@@ -56,6 +56,13 @@ header{
 }
 .monthnav button:active{background:var(--plan-bg)}
 
+/* ── モード切替タブ（月次/年次） ── */
+.modetabs{max-width:640px;margin:10px auto 0;padding:0 16px;display:flex;gap:8px}
+.modetab{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--sub);font-family:inherit;font-weight:700;
+  font-size:.85rem;cursor:pointer}
+.modetab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
 /* ── サマリー＋ブレーカーストリップ ── */
 .panel{max-width:640px;margin:12px auto 0;padding:0 16px}
 .summary{
@@ -171,10 +178,15 @@ button:focus-visible,.chip:focus-visible{outline:2px solid var(--volt);outline-o
 
 <!-- メイン -->
 <div id="main" class="hidden">
+  <div class="modetabs">
+    <button class="modetab on" id="tab-monthly" onclick="setMode('monthly')">月次点検（当月）</button>
+    <button class="modetab" id="tab-annual" onclick="setMode('annual')">年次点検（年間）</button>
+  </div>
+
   <div class="monthnav">
-    <button onclick="moveMonth(-1)" aria-label="前の月">◀</button>
+    <button onclick="moveNav(-1)" aria-label="前へ">◀</button>
     <h1 id="ymlabel" class="mono"></h1>
-    <button onclick="moveMonth(1)" aria-label="次の月">▶</button>
+    <button onclick="moveNav(1)" aria-label="次へ">▶</button>
   </div>
 
   <div class="panel">
@@ -185,24 +197,26 @@ button:focus-visible,.chip:focus-visible{outline:2px solid var(--volt);outline-o
         <div><span class="big mono warn-n" id="c-warn">-</span><span class="lbl">未実施</span></div>
       </div>
       <div class="strip" id="strip" aria-hidden="true"></div>
-      <div class="strip-lbl"><span>月初</span><span>月末</span></div>
+      <div class="strip-lbl"><span id="strip-lbl-start">月初</span><span id="strip-lbl-end">月末</span></div>
     </div>
   </div>
 
   <div class="chips" id="chips"></div>
   <div id="loading" class="hidden">読み込み中…</div>
   <div class="list" id="list"></div>
-  <div id="empty" class="empty hidden">この月の点検予定はありません。<br>カレンダーに予定を追加すると自動で反映されます。</div>
+  <div id="empty" class="empty hidden"></div>
 </div>
 
 <script>
 /* ★ GASウェブアプリのURLを設定 */
-const API = 'https://script.google.com/macros/s/AKfycbzmz-AfbkekctY5Rc0mLblCRzDiGYrQGcqCLDXEQX76RwT2kKMQgOjXPwjh9BsZE6wqHA/exec';
+const API = 'https://script.google.com/macros/s/ここにデプロイID/exec';
 
 const state = {
   user: localStorage.getItem('tenken_user') || '',
   admin: localStorage.getItem('tenken_admin') === '1',
+  mode: 'monthly', // 'monthly' | 'annual'
   ym: new Date().toISOString().slice(0, 7),
+  year: String(new Date().getFullYear()),
   items: [],
   fTanto: '全員',
   fType: '全種別'
@@ -210,7 +224,7 @@ const state = {
 
 init();
 function init() {
-  if (state.user) { showMain(); loadMonth(); }
+  if (state.user) { showMain(); loadData(); }
 }
 
 /* ── API ── */
@@ -233,7 +247,7 @@ async function doLogin() {
     state.admin = !!r.admin;
     localStorage.setItem('tenken_user', r.user);
     localStorage.setItem('tenken_admin', r.admin ? '1' : '0');
-    showMain(); loadMonth();
+    showMain(); loadData();
   } catch (e) { err.textContent = '通信エラー。電波状況を確認してください'; }
 }
 function logout() {
@@ -249,19 +263,42 @@ function showMain() {
   who.innerHTML = state.user + ' さん<button onclick="logout()">ログアウト</button>';
 }
 
-/* ── 月操作・取得 ── */
-function moveMonth(d) {
-  const [y, m] = state.ym.split('-').map(Number);
-  const nd = new Date(y, m - 1 + d, 1);
-  state.ym = nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0');
-  loadMonth();
+/* ── モード切替 ── */
+function setMode(m) {
+  if (state.mode === m) return;
+  state.mode = m;
+  document.getElementById('tab-monthly').classList.toggle('on', m === 'monthly');
+  document.getElementById('tab-annual').classList.toggle('on', m === 'annual');
+  document.getElementById('strip-lbl-start').textContent = m === 'annual' ? '1月' : '月初';
+  document.getElementById('strip-lbl-end').textContent = m === 'annual' ? '12月' : '月末';
+  loadData();
 }
-async function loadMonth() {
-  document.getElementById('ymlabel').textContent = state.ym.replace('-', ' / ');
+
+/* ── 月/年 操作・取得 ── */
+function moveNav(d) {
+  if (state.mode === 'annual') {
+    state.year = String(Number(state.year) + d);
+  } else {
+    const [y, m] = state.ym.split('-').map(Number);
+    const nd = new Date(y, m - 1 + d, 1);
+    state.ym = nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0');
+  }
+  loadData();
+}
+async function loadData() {
+  const isAnnual = state.mode === 'annual';
+  document.getElementById('ymlabel').textContent = isAnnual
+    ? state.year + '年'
+    : state.ym.replace('-', ' / ');
+  document.getElementById('empty').innerHTML = isAnnual
+    ? 'この年の年次点検予定はありません。<br>カレンダーか事業所マスタに登録すると自動で反映されます。'
+    : 'この月の点検予定はありません。<br>カレンダーに予定を追加すると自動で反映されます。';
   document.getElementById('loading').classList.remove('hidden');
   document.getElementById('list').innerHTML = '';
   try {
-    const r = await api({ action: 'list', month: state.ym });
+    const r = isAnnual
+      ? await api({ action: 'listAnnual', year: state.year })
+      : await api({ action: 'list', month: state.ym });
     state.items = r.ok ? r.items : [];
   } catch (e) { state.items = []; }
   document.getElementById('loading').classList.add('hidden');
