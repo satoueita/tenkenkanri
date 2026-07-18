@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>点検ダッシュボード｜匡電気</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0EE;          /* 盤面グレー */
+  --ink:#16211C;         /* キャビネット黒緑 */
+  --sub:#64707A;
+  --card:#FFFFFF;
+  --done:#178A5B;        /* 完了 */
+  --done-bg:#E3F3EC;
+  --warn:#D97014;        /* 期限超過 */
+  --warn-bg:#FBEEDF;
+  --plan:#8A97A1;        /* 予定 */
+  --plan-bg:#EDF0F2;
+  --line:#DDE2DF;
+  --volt:#F2C230;        /* 検電イエロー：ヘッダー罫のみ */
+  --radius:12px;
+  font-size:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Zen Kaku Gothic New",system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:48px;
+}
+.mono{font-family:"IBM Plex Mono",monospace}
+
+/* ── ヘッダー ── */
+header{
+  position:sticky;top:0;z-index:10;
+  background:var(--ink);color:#F4F6F4;
+  border-bottom:3px solid var(--volt);
+}
+.head-inner{max-width:640px;margin:0 auto;padding:10px 16px;
+  display:flex;align-items:center;justify-content:space-between}
+.brand{font-weight:700;font-size:.95rem;letter-spacing:.04em}
+.brand small{display:block;font-weight:400;font-size:.65rem;color:#9DB0A6;letter-spacing:.12em}
+#who{font-size:.8rem;color:#C9D4CD}
+#who button{background:none;border:none;color:#8FA79A;font-size:.75rem;
+  margin-left:8px;text-decoration:underline;cursor:pointer}
+
+/* ── 月ナビ ── */
+.monthnav{max-width:640px;margin:14px auto 0;padding:0 16px;
+  display:flex;align-items:center;justify-content:space-between}
+.monthnav h1{font-size:1.25rem;font-weight:700;letter-spacing:.02em}
+.monthnav button{
+  width:42px;height:42px;border-radius:50%;border:1px solid var(--line);
+  background:var(--card);font-size:1.1rem;color:var(--ink);cursor:pointer;
+}
+.monthnav button:active{background:var(--plan-bg)}
+
+/* ── サマリー＋ブレーカーストリップ ── */
+.panel{max-width:640px;margin:12px auto 0;padding:0 16px}
+.summary{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px 16px;
+}
+.counts{display:flex;gap:20px;align-items:baseline}
+.counts .big{font-size:1.9rem;font-weight:600}
+.counts .lbl{font-size:.72rem;color:var(--sub);display:block;margin-top:2px}
+.counts .done-n{color:var(--done)}
+.counts .warn-n{color:var(--warn)}
+/* 分電盤ストリップ：1点検＝1セグメント */
+.strip{display:flex;gap:3px;margin-top:12px;height:22px}
+.seg{flex:1;border-radius:3px;background:var(--plan-bg);
+  border:1px solid var(--line);transition:background .3s}
+.seg.done{background:var(--done);border-color:var(--done)}
+.seg.warn{background:var(--warn);border-color:var(--warn)}
+.strip-lbl{display:flex;justify-content:space-between;margin-top:6px;
+  font-size:.65rem;color:var(--sub)}
+
+/* ── フィルタ ── */
+.chips{max-width:640px;margin:14px auto 4px;padding:0 16px;
+  display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;padding:6px 14px;border-radius:999px;font-size:.8rem;
+  border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer;
+}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ── リスト ── */
+.list{max-width:640px;margin:0 auto;padding:0 16px}
+.datehead{font-size:.75rem;color:var(--sub);margin:16px 2px 6px;
+  letter-spacing:.05em}
+.datehead .dow{margin-left:4px}
+.datehead .dow.sat{color:#2B6CB0}.datehead .dow.sun{color:#C0392B}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:8px;
+  display:flex;align-items:center;gap:12px;
+}
+.card.is-done{background:var(--done-bg);border-color:#BFE3D2}
+.card.is-warn{border-left:4px solid var(--warn)}
+.info{flex:1;min-width:0}
+.site{font-weight:700;font-size:.95rem;line-height:1.35;word-break:break-all}
+.meta{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center}
+.badge{font-size:.68rem;padding:2px 8px;border-radius:4px;font-weight:500}
+.badge.type-月次{background:var(--plan-bg);color:#4A5760}
+.badge.type-年次{background:#E8E3F5;color:#5B4A9E}
+.badge.type-隔月{background:#E0EFF5;color:#2B6C8A}
+.badge.type-その他{background:var(--plan-bg);color:var(--sub)}
+.badge.tanto{background:#FFF6DE;color:#8A6A10}
+.donemeta{font-size:.7rem;color:var(--done);margin-top:4px}
+.warnmeta{font-size:.7rem;color:var(--warn);margin-top:4px;font-weight:500}
+.act button{
+  border:none;border-radius:10px;cursor:pointer;
+  font-family:inherit;font-weight:700;font-size:.8rem;
+  padding:10px 14px;
+}
+.btn-do{background:var(--ink);color:#fff}
+.btn-do:active{background:#2C3B33}
+.btn-undo{background:none;color:var(--sub);font-weight:400;
+  font-size:.7rem;text-decoration:underline;padding:6px}
+.empty{max-width:640px;margin:40px auto;text-align:center;color:var(--sub);
+  font-size:.85rem;padding:0 16px}
+
+/* ── ログイン ── */
+#login{max-width:360px;margin:12vh auto 0;padding:0 20px}
+#login .box{background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:24px 20px}
+#login h2{font-size:1.05rem;margin-bottom:4px}
+#login p{font-size:.75rem;color:var(--sub);margin-bottom:16px}
+#login input{
+  width:100%;padding:12px;margin-bottom:10px;font-size:1rem;
+  border:1px solid var(--line);border-radius:8px;font-family:inherit;
+}
+#login input:focus{outline:2px solid var(--ink);outline-offset:1px}
+#login button{
+  width:100%;padding:13px;border:none;border-radius:10px;
+  background:var(--ink);color:#fff;font-size:.95rem;font-weight:700;
+  font-family:inherit;cursor:pointer;
+}
+#loginerr{color:var(--warn);font-size:.78rem;margin-top:10px;min-height:1em}
+
+#loading{max-width:640px;margin:30px auto;text-align:center;
+  color:var(--sub);font-size:.8rem}
+.hidden{display:none!important}
+button:focus-visible,.chip:focus-visible{outline:2px solid var(--volt);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <div class="brand">点検ダッシュボード<small>匡電気管理事務所</small></div>
+    <div id="who" class="hidden"></div>
+  </div>
+</header>
+
+<!-- ログイン -->
+<div id="login">
+  <div class="box">
+    <h2>ログイン</h2>
+    <p>共通名簿のアカウントでログインしてください</p>
+    <input id="user" placeholder="名前" autocomplete="username">
+    <input id="pass" type="password" placeholder="パスワード" autocomplete="current-password">
+    <button onclick="doLogin()">ログイン</button>
+    <div id="loginerr"></div>
+  </div>
+</div>
+
+<!-- メイン -->
+<div id="main" class="hidden">
+  <div class="monthnav">
+    <button onclick="moveMonth(-1)" aria-label="前の月">◀</button>
+    <h1 id="ymlabel" class="mono"></h1>
+    <button onclick="moveMonth(1)" aria-label="次の月">▶</button>
+  </div>
+
+  <div class="panel">
+    <div class="summary">
+      <div class="counts">
+        <div><span class="big mono" id="c-total">-</span><span class="lbl">件</span></div>
+        <div><span class="big mono done-n" id="c-done">-</span><span class="lbl">完了</span></div>
+        <div><span class="big mono warn-n" id="c-warn">-</span><span class="lbl">未実施</span></div>
+      </div>
+      <div class="strip" id="strip" aria-hidden="true"></div>
+      <div class="strip-lbl"><span>月初</span><span>月末</span></div>
+    </div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div id="loading" class="hidden">読み込み中…</div>
+  <div class="list" id="list"></div>
+  <div id="empty" class="empty hidden">この月の点検予定はありません。<br>カレンダーに予定を追加すると自動で反映されます。</div>
+</div>
+
+<script>
+/* ★ GASウェブアプリのURLを設定 */
+const API = 'https://script.google.com/macros/s/AKfycbzmz-AfbkekctY5Rc0mLblCRzDiGYrQGcqCLDXEQX76RwT2kKMQgOjXPwjh9BsZE6wqHA/exec';
+
+const state = {
+  user: localStorage.getItem('tenken_user') || '',
+  ym: new Date().toISOString().slice(0, 7),
+  items: [],
+  fTanto: '全員',
+  fType: '全種別'
+};
+
+init();
+function init() {
+  if (state.user) { showMain(); loadMonth(); }
+}
+
+/* ── API ── */
+async function api(params) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(API + '?' + qs);
+  return res.json();
+}
+
+/* ── ログイン ── */
+async function doLogin() {
+  const u = document.getElementById('user').value.trim();
+  const p = document.getElementById('pass').value;
+  const err = document.getElementById('loginerr');
+  err.textContent = '';
+  try {
+    const r = await api({ action: 'login', user: u, pass: p });
+    if (!r.ok) { err.textContent = r.error || 'ログインに失敗しました'; return; }
+    state.user = r.user;
+    localStorage.setItem('tenken_user', r.user);
+    showMain(); loadMonth();
+  } catch (e) { err.textContent = '通信エラー。電波状況を確認してください'; }
+}
+function logout() {
+  localStorage.removeItem('tenken_user');
+  location.reload();
+}
+function showMain() {
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  const who = document.getElementById('who');
+  who.classList.remove('hidden');
+  who.innerHTML = state.user + ' さん<button onclick="logout()">ログアウト</button>';
+}
+
+/* ── 月操作・取得 ── */
+function moveMonth(d) {
+  const [y, m] = state.ym.split('-').map(Number);
+  const nd = new Date(y, m - 1 + d, 1);
+  state.ym = nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0');
+  loadMonth();
+}
+async function loadMonth() {
+  document.getElementById('ymlabel').textContent = state.ym.replace('-', ' / ');
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('list').innerHTML = '';
+  try {
+    const r = await api({ action: 'list', month: state.ym });
+    state.items = r.ok ? r.items : [];
+  } catch (e) { state.items = []; }
+  document.getElementById('loading').classList.add('hidden');
+  render();
+}
+
+/* ── 完了 / 取り消し ── */
+async function setDone(key, done) {
+  const item = state.items.find(i => i.key === key);
+  if (!item) return;
+  if (!confirm(item.site + ' を' + (done ? '完了に戻し' : '未実施にし') + 'ますか？')) return;
+  item.done = done;                      // 楽観更新
+  item.doneBy = done ? state.user : '';
+  item.doneAt = done ? new Date().toISOString().slice(0, 10) : '';
+  render();
+  try {
+    const r = await api({ action: done ? 'complete' : 'uncomplete',
+                          key, user: state.user });
+    if (!r.ok) throw new Error(r.error);
+  } catch (e) {
+    item.done = !done; render();
+    alert('記録に失敗しました。もう一度お試しください。');
+  }
+}
+
+/* ── 描画 ── */
+function render() {
+  const today = new Date().toISOString().slice(0, 10);
+  const all = state.items.slice().sort((a, b) => a.date.localeCompare(b.date));
+
+  // サマリー＋ストリップ（フィルタ前の全件）
+  const doneN = all.filter(i => i.done).length;
+  const warnN = all.filter(i => i.miss).length;
+  document.getElementById('c-total').textContent = all.length;
+  document.getElementById('c-done').textContent = doneN;
+  document.getElementById('c-warn').textContent = warnN;
+  document.getElementById('strip').innerHTML = all.map(i => {
+    const cls = i.done ? 'done' : (i.miss ? 'warn' : '');
+    return '<div class="seg ' + cls + '" title="' + esc(i.site) + '"></div>';
+  }).join('') || '<div class="seg"></div>';
+
+  // フィルタチップ
+  const tantos = ['全員', ...new Set(all.map(i => i.tanto).filter(Boolean))];
+  const types = ['全種別', ...new Set(all.map(i => i.type))];
+  document.getElementById('chips').innerHTML =
+    tantos.map(t => chip(t, 'fTanto')).join('') +
+    types.map(t => chip(t, 'fType')).join('');
+
+  // リスト
+  const rows = all.filter(i =>
+    (state.fTanto === '全員' || i.tanto === state.fTanto) &&
+    (state.fType === '全種別' || i.type === state.fType));
+  document.getElementById('empty')
+    .classList.toggle('hidden', rows.length > 0);
+
+  let html = '', lastDate = '';
+  for (const i of rows) {
+    if (i.date !== lastDate) {
+      html += dateHead(i.date);
+      lastDate = i.date;
+    }
+    html += card(i, today);
+  }
+  document.getElementById('list').innerHTML = html;
+}
+
+function chip(label, fkey) {
+  const on = state[fkey] === label ? ' on' : '';
+  return '<button class="chip' + on + '" onclick="setFilter(\'' + fkey +
+         '\',\'' + esc(label) + '\')">' + esc(label) + '</button>';
+}
+function setFilter(fkey, v) { state[fkey] = v; render(); }
+
+function dateHead(d) {
+  const dt = new Date(d + 'T00:00:00+09:00');
+  const dows = ['日', '月', '火', '水', '木', '金', '土'];
+  const w = dt.getDay();
+  const cls = w === 0 ? 'sun' : w === 6 ? 'sat' : '';
+  return '<div class="datehead mono">' + d.slice(5).replace('-', '/') +
+         '<span class="dow ' + cls + '">(' + dows[w] + ')</span></div>';
+}
+
+function card(i, today) {
+  const cls = i.done ? ' is-done' : i.miss ? ' is-warn' : '';
+  let meta = '<span class="badge type-' + i.type + '">' + i.type + '</span>';
+  if (i.tanto) meta += '<span class="badge tanto">担当: ' + esc(i.tanto) + '</span>';
+  let sub = '';
+  if (i.done) sub = '<div class="donemeta">✅ ' + esc(i.doneBy) +
+                    '（' + i.doneAt.slice(5).replace('-', '/') + '）</div>';
+  else if (i.miss) sub = '<div class="warnmeta">未実施：カレンダーで予定を組み直してください</div>';
+  // ボタンは修正用のみ：予定（未来）は自動完了に任せる
+  let act = '';
+  if (i.done) act = '<button class="btn-undo" onclick="setDone(\'' + i.key + '\',false)">未実施にする</button>';
+  else if (i.miss) act = '<button class="btn-do" onclick="setDone(\'' + i.key + '\',true)">完了に戻す</button>';
+  return '<div class="card' + cls + '">' +
+         '<div class="info"><div class="site">' + esc(i.site) + '</div>' +
+         '<div class="meta">' + meta + '</div>' + sub + '</div>' +
+         '<div class="act">' + act + '</div></div>';
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+document.getElementById('pass').addEventListener('keydown',
+  e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
