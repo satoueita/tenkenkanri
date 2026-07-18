@@ -389,7 +389,7 @@ function card(i, today) {
   if (i.done) sub = '<div class="donemeta">✅ ' + esc(i.doneBy) +
                     '（' + i.doneAt.slice(5).replace('-', '/') + '）</div>';
   else if (i.miss) sub = '<div class="warnmeta">未実施：カレンダーで予定を組み直してください</div>';
-  // 修正ボタンは管理者のみ表示（予定は自動完了に任せる）
+  // 修正ボタンは管理者のみ表示（進捗の記録はカレンダー予定＋日次同期で行う）
   let act = '';
   if (state.admin) {
     if (i.done) act = '<button class="btn-undo" onclick="setDone(\'' + i.key + '\',false)">未実施にする</button>';
