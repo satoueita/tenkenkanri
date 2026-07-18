@@ -102,7 +102,8 @@ header{
 .info{flex:1;min-width:0}
 .site{font-weight:700;font-size:.95rem;line-height:1.35;word-break:break-all}
 .meta{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center}
-.badge{font-size:.68rem;padding:2px 8px;border-radius:4px;font-weight:500}
+.badge{font-size:.68rem;padding:2px 8px;border-radius:4px;font-weight:500;
+  background:var(--plan-bg);color:#4A5760}
 .badge.type-月次{background:var(--plan-bg);color:#4A5760}
 .badge.type-年次{background:#E8E3F5;color:#5B4A9E}
 .badge.type-隔月{background:#E0EFF5;color:#2B6C8A}
@@ -196,10 +197,11 @@ button:focus-visible,.chip:focus-visible{outline:2px solid var(--volt);outline-o
 
 <script>
 /* ★ GASウェブアプリのURLを設定 */
-const API = 'https://script.google.com/macros/s/AKfycbzmz-AfbkekctY5Rc0mLblCRzDiGYrQGcqCLDXEQX76RwT2kKMQgOjXPwjh9BsZE6wqHA/exec';
+const API = 'https://script.google.com/macros/s/ここにデプロイID/exec';
 
 const state = {
   user: localStorage.getItem('tenken_user') || '',
+  admin: localStorage.getItem('tenken_admin') === '1',
   ym: new Date().toISOString().slice(0, 7),
   items: [],
   fTanto: '全員',
@@ -228,12 +230,15 @@ async function doLogin() {
     const r = await api({ action: 'login', user: u, pass: p });
     if (!r.ok) { err.textContent = r.error || 'ログインに失敗しました'; return; }
     state.user = r.user;
+    state.admin = !!r.admin;
     localStorage.setItem('tenken_user', r.user);
+    localStorage.setItem('tenken_admin', r.admin ? '1' : '0');
     showMain(); loadMonth();
   } catch (e) { err.textContent = '通信エラー。電波状況を確認してください'; }
 }
 function logout() {
   localStorage.removeItem('tenken_user');
+  localStorage.removeItem('tenken_admin');
   location.reload();
 }
 function showMain() {
@@ -347,10 +352,12 @@ function card(i, today) {
   if (i.done) sub = '<div class="donemeta">✅ ' + esc(i.doneBy) +
                     '（' + i.doneAt.slice(5).replace('-', '/') + '）</div>';
   else if (i.miss) sub = '<div class="warnmeta">未実施：カレンダーで予定を組み直してください</div>';
-  // ボタンは修正用のみ：予定（未来）は自動完了に任せる
+  // 修正ボタンは管理者のみ表示（予定は自動完了に任せる）
   let act = '';
-  if (i.done) act = '<button class="btn-undo" onclick="setDone(\'' + i.key + '\',false)">未実施にする</button>';
-  else if (i.miss) act = '<button class="btn-do" onclick="setDone(\'' + i.key + '\',true)">完了に戻す</button>';
+  if (state.admin) {
+    if (i.done) act = '<button class="btn-undo" onclick="setDone(\'' + i.key + '\',false)">未実施にする</button>';
+    else if (i.miss) act = '<button class="btn-do" onclick="setDone(\'' + i.key + '\',true)">完了に戻す</button>';
+  }
   return '<div class="card' + cls + '">' +
          '<div class="info"><div class="site">' + esc(i.site) + '</div>' +
          '<div class="meta">' + meta + '</div>' + sub + '</div>' +
