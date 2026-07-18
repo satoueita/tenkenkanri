@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>点検通知 登録｜匡電気</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root{--ink:#16211C;--sub:#64707A;--line:#DDE2DF;--volt:#F2C230}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Zen Kaku Gothic New",system-ui,sans-serif;background:#EEF0EE;color:var(--ink)}
+header{background:var(--ink);color:#F4F6F4;border-bottom:3px solid var(--volt);
+  padding:12px 16px;font-weight:700;font-size:.95rem}
+header small{display:block;font-weight:400;font-size:.65rem;color:#9DB0A6}
+.box{max-width:360px;margin:24px auto;background:#fff;border:1px solid var(--line);
+  border-radius:12px;padding:22px 20px}
+p{font-size:.8rem;color:var(--sub);line-height:1.6;margin-bottom:14px}
+label{font-size:.75rem;font-weight:700;display:block;margin-bottom:6px}
+input{width:100%;padding:12px;font-size:1rem;border:1px solid var(--line);
+  border-radius:8px;font-family:inherit;margin-bottom:14px}
+input:focus{outline:2px solid var(--ink)}
+button{width:100%;padding:13px;border:none;border-radius:10px;background:var(--ink);
+  color:#fff;font-size:.95rem;font-weight:700;font-family:inherit;cursor:pointer}
+#msg{margin-top:12px;font-size:.8rem;min-height:1.2em}
+#msg.ok{color:#178A5B}#msg.ng{color:#D97014}
+#profile{font-size:.8rem;margin-bottom:14px;color:var(--sub)}
+</style>
+</head>
+<body>
+<header>点検通知 登録<small>匡電気管理事務所</small></header>
+<div class="box">
+  <p>毎月20日、あなたの担当分で未点検の事業所があるとLINEでお知らせします。
+     カレンダー上のあなたの担当表記を登録してください。</p>
+  <div id="profile">LINEプロフィール取得中…</div>
+  <label for="tanto">担当表記（カレンダーのタイトルに書く記号・名前）</label>
+  <input id="tanto" placeholder="例: 栗 / 佐藤">
+  <button onclick="register()">登録する</button>
+  <div id="msg"></div>
+</div>
+
+<script>
+/* ★ 設定 */
+const LIFF_ID = 'ここに登録ページ用LIFF ID';
+const API = 'https://script.google.com/macros/s/ここにデプロイID/exec';
+
+let prof = null;
+
+liff.init({ liffId: LIFF_ID }).then(async () => {
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  prof = await liff.getProfile();
+  document.getElementById('profile').textContent =
+    'LINEアカウント: ' + prof.displayName;
+}).catch(e => {
+  document.getElementById('profile').textContent = 'LIFF初期化エラー: ' + e;
+});
+
+async function register() {
+  const tanto = document.getElementById('tanto').value.trim();
+  const msg = document.getElementById('msg');
+  msg.className = ''; msg.textContent = '';
+  if (!prof) { msg.className = 'ng'; msg.textContent = 'プロフィール取得を待っています'; return; }
+  if (!tanto) { msg.className = 'ng'; msg.textContent = '担当表記を入力してください'; return; }
+  try {
+    const qs = new URLSearchParams({
+      action: 'registerLine', tanto,
+      lineId: prof.userId, name: prof.displayName
+    });
+    const r = await (await fetch(API + '?' + qs)).json();
+    if (!r.ok) throw new Error(r.error);
+    msg.className = 'ok';
+    msg.textContent = '登録しました。「' + tanto + '」担当分の通知が届きます。';
+  } catch (e) {
+    msg.className = 'ng';
+    msg.textContent = '登録に失敗しました。もう一度お試しください。';
+  }
+}
+</script>
+</body>
+</html>
